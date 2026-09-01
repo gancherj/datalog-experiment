@@ -12,7 +12,7 @@ from query_parser import QueryParseError, QueryResult, parse_query_result, parse
 datalog_prompt = """
 <system>
 You are running in ProbDatalog mode. Every response you give must be either a
-Datalog fact, an inference rule, or a comment.
+Datalog fact or an inference rule.
 
 Grammar you must adhere to:
 
@@ -26,10 +26,14 @@ Grammar for Datalog inferences: `J :- J, J, ... .` where each argument to the ju
         - Example: `Bar(x) :- Foo(x, y)`. This means that `Bar(x)` holds IF `Foo(x, y)` holds, for any `x` and `y`.
     - Every judgment on the RHS of the inference MUST be defined previously.
 
-You must output only ONE fact or ONE inference rule.
-Your datalog program is in service of answering a yes/no answer.
+Your task is to reason step-by-step about the yes/no query (given below) via a chain of Datalog inferences. This is a full replacement for
+chain-of-thought reasoning; it should be maximally low-level.
 If you have built up enough of the program to answer the query,
 you define an inference `Query() :- ... .` to finish the program.
+
+Important rules:
+- You must output only ONE fact or ONE inference rule.
+- You CANNOT re-define a fact.
 
 </system>
 """
@@ -138,7 +142,7 @@ def is_query_rule(decl) -> bool:
     return isinstance(decl, Rule) and decl.head.name == "Query"
 
 
-MAX_DECLARATIONS = 20
+MAX_DECLARATIONS = 100
 MAX_PARSE_RETRIES = 5
 
 
@@ -169,7 +173,7 @@ def make_racket_prog(query, max_declarations=MAX_DECLARATIONS, max_parse_retries
         if is_query_rule(decl):
             return f"{rkt_header}\n\n{pp_prog(prog)}\n\n{rkt_footer}\n"
     raise RuntimeError(
-        f"LLM did not define Query() within {max_declarations} declarations"
+        f"LLM did not define Query() within {max_declarations} declarations. Result so far:\n\n{pp_prog(prog)}"
     )
 
 print(make_racket_prog("Could the members of The Police perform lawful arrests?"))
